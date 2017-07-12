@@ -6,34 +6,13 @@
   <title>tracking.js - tag friends</title>
   <script src="./node_modules/tracking/build/tracking-min.js"></script>
   <script src="./node_modules/tracking/build/data/face-min.js"></script>
-  <script src="./assets/stats.js"></script>
-
-  <style>
-  .demo-container {
-   background-color: black;
- }
-  </style>
 </head>
 <body>
-  <div class="demo-frame">
-    <div class="demo-container" style="float:left;display:inline">
-        <video id="video" width="400" height="265" preload autoplay controls muted>
-         <source src="assets/video.ogv" type="video/ogg">
-       </video>
-    </div>
-    <div style="display:none">
-        <canvas id="canvas1" width="400" height="250"></canvas>
-    </div>
-    <div style="float:right;display:inline">
-        <canvas id="canvas2" width="400" height="250"></canvas>
-    </div>
-  </div>
-  <script src="src/index.js" /></script>
-  <script>
-    document.onload = function(){
+    <div id="container"></div>
+    <script src="src/index.js"></script>
+    <script>
         App.init();
-    };
-  </script>
+    </script>
 
 </body>
 </html>
