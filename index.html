@@ -6,7 +6,7 @@
   <title>tracking.js - tag friends</title>
   <script src="./node_modules/tracking/build/tracking-min.js"></script>
   <script src="./node_modules/tracking/build/data/face-min.js"></script>
-  <script src="./assets/stats.min.js"></script>
+  <script src="./assets/stats.js"></script>
 
   <style>
   .demo-container {
@@ -17,7 +17,7 @@
 <body>
   <div class="demo-frame">
     <div class="demo-container" style="float:left;display:inline">
-        <video id="video" width="400" height="265" preload loop muted controls>
+        <video id="video" width="400" height="265" preload autoplay controls muted>
          <source src="assets/video.ogv" type="video/ogg">
        </video>
     </div>
@@ -28,61 +28,11 @@
         <canvas id="canvas2" width="400" height="250"></canvas>
     </div>
   </div>
+  <script src="src/index.js" /></script>
   <script>
-  let processor = {
-      timerCallback: function() {
-        if (this.video.paused || this.video.ended) {
-          return;
-        }
-        this.computeFrame();
-        let self = this;
-        setTimeout(function () {
-            self.timerCallback();
-          }, 0);
-      },
-
-      doLoad: function() {
-        this.video = document.getElementById("video");
-        let self = this;
-
-        this.tracker = new tracking.ObjectTracker('face');
-        this.canvas1 = document.getElementById("canvas1");
-        this.ctx1 = this.canvas1.getContext("2d");
-
-        this.canvas2 = document.getElementById("canvas2");
-        this.ctx2 = this.canvas2.getContext("2d");
-
-        this.video.addEventListener("play", function() {
-            self.width = self.video.videoWidth / 2;
-            self.height = self.video.videoHeight / 2;
-            self.timerCallback();
-          }, false);
-      },
-
-      computeFrame: function() {
-        this.ctx1.drawImage(this.video, 0, 0, this.width, this.height);
-        let frame = this.ctx1.getImageData(0, 0, this.width, this.height);
-        this.tracker.track(frame.data, this.width, this.height);
-        let self = this;
-        this.tracker.on('track', function(event) {
-            self.ctx2.clearRect(0, 0, self.canvas2.width, self.canvas2.height);
-            self.ctx2.putImageData(frame, 0, 0);
-          event.data.forEach(function(rect) {
-              var x = rect.x + rect.width / 2;
-              var y = rect.y + rect.height / 2;
-              self.ctx2.beginPath();
-                self.ctx2.arc(x, y, 5, 0, 2 * Math.PI, false);
-                self.ctx2.fillStyle = 'green';
-                self.ctx2.fill();
-                self.ctx2.lineWidth = 5;
-                self.ctx2.strokeStyle = '#003300';
-                self.ctx2.stroke();
-          });
-        });
-      }
+    document.onload = function(){
+        App.init();
     };
-
-    processor.doLoad();
   </script>
 
 </body>
