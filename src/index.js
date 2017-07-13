@@ -49,6 +49,10 @@ class LoadingView {
 
     startCapturing(){
         this._isCapturing = true;
+        this.worker = new Worker('src/w.js');
+        this.worker.onmessage = (e) => {
+            this.frames[e.data.index].rectangles = e.data.rectangles;
+        }
         this.captureFrame();
     }
 
@@ -59,8 +63,9 @@ class LoadingView {
 
         this.blitCtx.drawImage(this.video, 0, 0, this.videoWidth, this.videoHeight);
         const frame = this.blitCtx.getImageData(0, 0, this.videoWidth, this.videoHeight);
-        this.frames.push(frame);
+        this.frames.push({frame});
         this.drawImage(frame);
+        this.sendMessage();
 
         requestAnimationFrame(() => {
             this.captureFrame();
@@ -70,6 +75,7 @@ class LoadingView {
 
     stopCapturing(){
         this._isCapturing = false;
+        console.log(this.frames);
     }
 
     drawImage(frame){
@@ -86,6 +92,12 @@ class LoadingView {
         //     self.ctx2.strokeStyle = '#003300';
         //     self.ctx2.stroke();
         // });
+    }
+
+    sendMessage(){
+        const frame = this.frames[this.frames.length - 1];
+        const index = this.frames.length - 1;
+        this.worker.postMessage({frame: frame.frame, index});
     }
 };
 
