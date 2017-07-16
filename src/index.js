@@ -1,3 +1,32 @@
+class WorkerPool {
+    constructor({count, onMessage}){
+        this.workers = [];
+        this.onMessage = onMessage;
+        this.currentIdx = 0;
+        this.pendingMessages = 0;
+
+        for (var i = 0; i < count; i++) {
+            const worker = new Worker('src/w.js');
+            worker.onmessage = this.bindOnMessage();
+            this.workers.push(worker);
+        }
+    }
+
+    bindOnMessage(){
+        return (e) => {
+            this.pendingMessages--;
+            this.onMessage(e.data);
+        }
+    }
+
+    sendMessage(msg){
+        this.pendingMessages++;
+        console.log(this.currentIdx);
+        this.workers[this.currentIdx].postMessage(msg);
+        this.currentIdx = (this.currentIdx + 1) % this.workers.length;
+    }
+}
+
 class LoadingView {
     constructor({videoUrl}){
         this.videoUrl = videoUrl;
@@ -28,7 +57,7 @@ class LoadingView {
         this.displayCtx = this.displayCanvas.getContext("2d");
         this.button = this.el.querySelector('#stop');
 
-        this.video.addEventListener("play", () => {
+        this.video.addEventListener('play', () => {
             this.videoWidth = this.video.videoWidth;
             this.videoHeight  = this.video.videoHeight;
             this.blitCanvas.style.height = `${this.videoHeight}px`;
@@ -38,7 +67,7 @@ class LoadingView {
             this.startCapturing();
         }, false);
 
-        this.video.addEventListener("end", () => {
+        this.video.addEventListener('ended', () => {
             this.stopCapturing();
         }, false);
 
@@ -49,10 +78,12 @@ class LoadingView {
 
     startCapturing(){
         this._isCapturing = true;
-        this.worker = new Worker('src/w.js');
-        this.worker.onmessage = (e) => {
-            this.frames[e.data.index].rectangles = e.data.rectangles;
-        }
+        this._startTime = new Date();
+        this.workerPool = new WorkerPool({
+            count: 10,
+            onMessage: (e) => this.onMessage(e)
+        });
+
         this.captureFrame();
     }
 
@@ -75,7 +106,21 @@ class LoadingView {
 
     stopCapturing(){
         this._isCapturing = false;
+        if (!this.workerPool.pendingMessages) {
+            this.onProcessingFinish();
+        }
+    }
+
+    onMessage(data){
+        this.frames[data.index].rectangles = data.rectangles;
+        if (!this._isCapturing && !this.workerPool.pendingMessages) {
+            this.onProcessingFinish();
+        }
+    }
+
+    onProcessingFinish(){
         console.log(this.frames);
+        console.log(new Date() - this._startTime);
     }
 
     drawImage(frame){
@@ -97,7 +142,7 @@ class LoadingView {
     sendMessage(){
         const frame = this.frames[this.frames.length - 1];
         const index = this.frames.length - 1;
-        this.worker.postMessage({frame: frame.frame, index});
+        this.workerPool.sendMessage({frame: frame.frame, index});
     }
 };
 
