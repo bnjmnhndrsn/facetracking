@@ -1,12 +1,25 @@
+const Renderer = {
+    showView(view){
+        if (this._view) {
+            this._view.remove();
+        }
+
+        this._view = view;
+        const container = document.getElementById('container');
+        container.innerHTML = view.render();
+        view.onRender();
+    }
+};
+
 class WorkerPool {
     constructor({count, onMessage}){
         this.workers = [];
-        this.onMessage = onMessage;
         this.currentIdx = 0;
         this.pendingMessages = 0;
+        this.completed = [];
 
         for (var i = 0; i < count; i++) {
-            const worker = new Worker('src/w.js');
+            const worker = new self.Worker('w.js');
             worker.onmessage = this.bindOnMessage();
             this.workers.push(worker);
         }
@@ -21,22 +34,62 @@ class WorkerPool {
 
     sendMessage(msg){
         this.pendingMessages++;
-        console.log(this.currentIdx);
         this.workers[this.currentIdx].postMessage(msg);
         this.currentIdx = (this.currentIdx + 1) % this.workers.length;
     }
+
+    onMessage(data){
+        this.completed[data.index] = data.rectangles;
+        if (!this.pendingMessages) {
+            this.onProcessingFinish();
+        }
+    }
+
+    onProcessingFinish(){
+        postMessage(this.completed);
+    }
 }
 
-class LoadingView {
+class Facetracker {
+    constructor({onComplete}){
+        this.worker = new Worker('src/parent.js');
+        this.worker.onmessage = (e) => onComplete(e.data);
+    }
+
+    sendMessage(frame){
+        this.worker.postMessage({frame: frame.frame});
+    }
+
+}
+
+class LoadingController {
     constructor({videoUrl}){
         this.videoUrl = videoUrl;
         this.frames = [];
     }
 
     render(){
-        this.el = document.createElement('div');
+        this.view = new LoadingView({
+            videoUrl: this.videoUrl,
+            onStart: this.onStart.bind(this),
+            onStop: this.onStop.bind(this),
+            addFrame: this.onUpdate.bind(this)
+        });
 
-        this.el.innerHTML = `
+        Renderer.showView(this.view);
+    }
+}
+
+class LoadingView {
+    constructor({videoUrl, onStart, onStop, onUpdate}){
+        this.videoUrl = videoUrl;
+        this.onStart = onStart;
+        this.onStop = onStop;
+        this.onUpdate = onUpdate;
+    }
+
+    render(){
+        return  `\
             <div>\
             <video autoplay muted style="display:none;"><source src="${this.videoUrl}"/></video>\
             <canvas style="display:none;" id="blitCanvas"></canvas>\
@@ -44,9 +97,6 @@ class LoadingView {
             <button id="stop">Stop</button> \
             </div>\
         `;
-
-        return this.el;
-
     }
 
     onRender(){
@@ -79,11 +129,7 @@ class LoadingView {
     startCapturing(){
         this._isCapturing = true;
         this._startTime = new Date();
-        this.workerPool = new WorkerPool({
-            count: 10,
-            onMessage: (e) => this.onMessage(e)
-        });
-
+        this.faceTracker = new Facetracker({onFacetrackingComplete: this.onFacetrackingComplete.bind(this)});
         this.captureFrame();
     }
 
@@ -106,16 +152,14 @@ class LoadingView {
 
     stopCapturing(){
         this._isCapturing = false;
-        if (!this.workerPool.pendingMessages) {
-            this.onProcessingFinish();
-        }
     }
 
-    onMessage(data){
-        this.frames[data.index].rectangles = data.rectangles;
-        if (!this._isCapturing && !this.workerPool.pendingMessages) {
-            this.onProcessingFinish();
-        }
+    onFacetrackingComplete(data){
+        data.forEach((datum, i) => {
+            this.frames[i].reactangles = datum;
+        });
+
+        this.onProcessingFinish();
     }
 
     onProcessingFinish(){
@@ -142,7 +186,7 @@ class LoadingView {
     sendMessage(){
         const frame = this.frames[this.frames.length - 1];
         const index = this.frames.length - 1;
-        this.workerPool.sendMessage({frame: frame.frame, index});
+        this.faceTracker.sendMessage({frame: frame.frame, index});
     }
 };
 
